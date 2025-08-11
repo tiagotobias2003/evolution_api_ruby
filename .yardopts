@@ -1,0 +1,12 @@
+--readme README.md
+--title "Evolution API Ruby Client Documentation"
+--markup markdown
+--markup-provider redcarpet
+--protected
+--private
+--exclude spec/
+--exclude examples/
+--exclude .git/
+--exclude vendor/
+--exclude .yardoc/
+--exclude doc/
