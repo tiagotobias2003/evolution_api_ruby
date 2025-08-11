@@ -16,7 +16,7 @@ module EvolutionApi
 
     # Lista todas as instâncias
     def list_instances
-      get("/instance/fetchInstances")
+      get('/instance/fetchInstances')
     end
 
     # Cria uma nova instância
@@ -31,7 +31,7 @@ module EvolutionApi
         webhookBase64: options[:webhook_base64] || false
       }.compact
 
-      post("/instance/create", body)
+      post('/instance/create', body)
     end
 
     # Conecta uma instância
@@ -263,17 +263,16 @@ module EvolutionApi
 
     def setup_http_client
       self.class.base_uri config.base_url
-      self.class.timeout config.timeout
       self.class.headers default_headers
     end
 
     def default_headers
       headers = {
-        "Content-Type" => "application/json",
-        "Accept" => "application/json"
+        'Content-Type' => 'application/json',
+        'Accept' => 'application/json'
       }
 
-      headers["apikey"] = config.api_key if config.api_key
+      headers['apikey'] = config.api_key if config.api_key
       headers
     end
 
@@ -316,19 +315,19 @@ module EvolutionApi
       when 200, 201
         parse_response(response)
       when 401
-        raise AuthenticationError, "Erro de autenticação", response
+        raise AuthenticationError.new('Erro de autenticação', response)
       when 403
-        raise AuthorizationError, "Acesso negado", response
+        raise AuthorizationError.new('Acesso negado', response)
       when 404
-        raise NotFoundError, "Recurso não encontrado", response
+        raise NotFoundError.new('Recurso não encontrado', response)
       when 422
-        raise ValidationError, "Erro de validação", response, parse_errors(response)
+        raise ValidationError.new('Erro de validação', response, parse_errors(response))
       when 429
-        raise RateLimitError, "Limite de requisições excedido", response
+        raise RateLimitError.new('Limite de requisições excedido', response)
       when 500..599
-        raise ServerError, "Erro interno do servidor", response
+        raise ServerError.new('Erro interno do servidor', response)
       else
-        raise Error, "Erro inesperado: #{response.code}", response, response.code
+        raise Error.new("Erro inesperado: #{response.code}", response, response.code)
       end
     end
 
@@ -344,9 +343,9 @@ module EvolutionApi
       return {} unless response.body
 
       parsed = JSON.parse(response.body)
-      parsed["errors"] || parsed
+      parsed['errors'] || parsed
     rescue JSON::ParserError
-      { "body" => response.body }
+      { 'body' => response.body }
     end
   end
 end

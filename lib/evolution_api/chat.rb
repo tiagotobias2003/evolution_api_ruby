@@ -6,13 +6,13 @@ module EvolutionApi
     attr_reader :id, :name, :unread_count, :is_group, :is_read_only, :archived, :pinned, :instance_name
 
     def initialize(data, instance_name = nil)
-      @id = data["id"]
-      @name = data["name"]
-      @unread_count = data["unreadCount"]
-      @is_group = data["isGroup"]
-      @is_read_only = data["isReadOnly"]
-      @archived = data["archived"]
-      @pinned = data["pinned"]
+      @id = data['id']
+      @name = data['name']
+      @unread_count = data['unreadCount']
+      @is_group = data['isGroup']
+      @is_read_only = data['isReadOnly']
+      @archived = data['archived']
+      @pinned = data['pinned']
       @instance_name = instance_name
     end
 
@@ -28,7 +28,7 @@ module EvolutionApi
 
     # Verifica se tem mensagens não lidas
     def unread?
-      unread_count && unread_count > 0
+      unread_count&.positive?
     end
 
     # Obtém o número de mensagens não lidas
@@ -54,7 +54,8 @@ module EvolutionApi
     # Obtém o número do chat (remove sufixos)
     def number
       return nil unless id
-      id.split("@").first
+
+      id.split('@').first
     end
 
     # Converte para hash

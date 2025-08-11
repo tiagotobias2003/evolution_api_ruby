@@ -38,7 +38,7 @@ module EvolutionApi
     # Verifica se a instância está conectada
     def connected?
       info = self.info
-      info["status"] == "open"
+      info['status'] == 'open'
     rescue StandardError
       false
     end

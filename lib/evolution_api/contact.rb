@@ -3,16 +3,17 @@
 module EvolutionApi
   # Classe para representar contatos do WhatsApp
   class Contact
-    attr_reader :id, :name, :push_name, :verified_name, :is_business, :is_enterprise, :is_high_level_verified, :instance_name
+    attr_reader :id, :name, :push_name, :verified_name, :is_business, :is_enterprise, :is_high_level_verified,
+                :instance_name
 
     def initialize(data, instance_name = nil)
-      @id = data["id"]
-      @name = data["name"]
-      @push_name = data["pushName"]
-      @verified_name = data["verifiedName"]
-      @is_business = data["isBusiness"]
-      @is_enterprise = data["isEnterprise"]
-      @is_high_level_verified = data["isHighLevelVerified"]
+      @id = data['id']
+      @name = data['name']
+      @push_name = data['pushName']
+      @verified_name = data['verifiedName']
+      @is_business = data['isBusiness']
+      @is_enterprise = data['isEnterprise']
+      @is_high_level_verified = data['isHighLevelVerified']
       @instance_name = instance_name
     end
 
@@ -34,7 +35,8 @@ module EvolutionApi
     # Obtém o número do contato (remove sufixos)
     def number
       return nil unless id
-      id.split("@").first
+
+      id.split('@').first
     end
 
     # Obtém o nome de exibição (prioriza nome verificado, depois push name, depois nome)

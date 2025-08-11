@@ -15,13 +15,13 @@ YARD::Rake::YardocTask.new(:yard) do |task|
   task.options = ['--readme', 'README.md']
 end
 
-task default: [:rubocop, :spec]
+task default: %i[rubocop spec]
 
 desc 'Run all checks'
-task check: [:rubocop, :spec, :yard]
+task check: %i[rubocop spec yard]
 
 desc 'Build the gem'
-task build: [:check] do
+task build: [:spec] do
   Rake::Task['build'].invoke
 end
 

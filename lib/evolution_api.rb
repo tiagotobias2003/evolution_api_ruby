@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-require "httparty"
-require "json"
-require "dry/configurable"
-require "dry/validation"
+require 'httparty'
+require 'json'
+require 'dry/configurable'
+require 'dry/validation'
 
-require_relative "evolution_api/version"
-require_relative "evolution_api/client"
-require_relative "evolution_api/instance"
-require_relative "evolution_api/message"
-require_relative "evolution_api/chat"
-require_relative "evolution_api/contact"
-require_relative "evolution_api/webhook"
-require_relative "evolution_api/errors"
+require_relative 'evolution_api/version'
+require_relative 'evolution_api/client'
+require_relative 'evolution_api/instance'
+require_relative 'evolution_api/message'
+require_relative 'evolution_api/chat'
+require_relative 'evolution_api/contact'
+require_relative 'evolution_api/webhook'
+require_relative 'evolution_api/errors'
 
 # Evolution API Ruby Client
 #
@@ -35,7 +35,7 @@ module EvolutionApi
   extend Dry::Configurable
 
   # Configurações padrão
-  setting :base_url, default: "http://localhost:8080"
+  setting :base_url, default: 'http://localhost:8080'
   setting :api_key, default: nil
   setting :timeout, default: 30
   setting :retry_attempts, default: 3

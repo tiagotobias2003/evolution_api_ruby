@@ -6,8 +6,8 @@ module EvolutionApi
     attr_reader :url, :events, :instance_name
 
     def initialize(data, instance_name = nil)
-      @url = data["webhook"]
-      @events = data["events"] || []
+      @url = data['webhook']
+      @events = data['events'] || []
       @instance_name = instance_name
     end
 
