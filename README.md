@@ -39,6 +39,427 @@ Ou instale diretamente:
 gem install evolution_api
 ```
 
+## 🚂 Integração com Rails
+
+### Instalação em Projetos Rails
+
+1. **Adicione a gem ao seu Gemfile:**
+
+```ruby
+# Gemfile
+gem 'evolution_api'
+```
+
+2. **Execute o bundle install:**
+
+```bash
+bundle install
+```
+
+3. **Configure a gem no initializer:**
+
+```ruby
+# config/initializers/evolution_api.rb
+EvolutionApi.configure do |config|
+  config.base_url = Rails.application.credentials.evolution_api[:base_url] || "http://localhost:8080"
+  config.api_key = Rails.application.credentials.evolution_api[:api_key]
+  config.timeout = 30
+  config.retry_attempts = 3
+  config.retry_delay = 1
+end
+```
+
+4. **Configure as credenciais (Rails 5.2+):**
+
+```bash
+rails credentials:edit
+```
+
+Adicione no arquivo de credenciais:
+
+```yaml
+evolution_api:
+  base_url: "https://sua-evolution-api.com"
+  api_key: "sua_api_key_aqui"
+```
+
+### Exemplo de Controller Rails
+
+```ruby
+# app/controllers/whatsapp_controller.rb
+class WhatsAppController < ApplicationController
+  before_action :set_client
+
+  def send_message
+    begin
+      response = @client.send_text_message(
+        params[:instance_name],
+        params[:phone_number],
+        params[:message]
+      )
+      
+      render json: { success: true, data: response }
+    rescue EvolutionApi::Error => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
+  end
+
+  def list_instances
+    instances = @client.list_instances
+    render json: { instances: instances }
+  end
+
+  def create_instance
+    response = @client.create_instance(params[:instance_name], {
+      qrcode: true,
+      webhook: webhook_url
+    })
+    
+    render json: { success: true, data: response }
+  end
+
+  private
+
+  def set_client
+    @client = EvolutionApi.client
+  end
+
+  def webhook_url
+    "#{request.base_url}/webhooks/whatsapp"
+  end
+end
+```
+
+### Exemplo de Model Rails
+
+```ruby
+# app/models/whatsapp_message.rb
+class WhatsAppMessage < ApplicationRecord
+  validates :instance_name, presence: true
+  validates :phone_number, presence: true
+  validates :message_type, presence: true, inclusion: { in: %w[text image audio video document] }
+  validates :content, presence: true
+
+  after_create :send_to_whatsapp
+
+  private
+
+  def send_to_whatsapp
+    client = EvolutionApi.client
+    
+    case message_type
+    when 'text'
+      client.send_text_message(instance_name, phone_number, content)
+    when 'image'
+      client.send_image_message(instance_name, phone_number, content, caption)
+    when 'audio'
+      client.send_audio_message(instance_name, phone_number, content)
+    when 'video'
+      client.send_video_message(instance_name, phone_number, content, caption)
+    when 'document'
+      client.send_document_message(instance_name, phone_number, content, caption)
+    end
+  rescue EvolutionApi::Error => e
+    update(status: 'failed', error_message: e.message)
+  end
+end
+```
+
+### Exemplo de Service Object
+
+```ruby
+# app/services/whatsapp_service.rb
+class WhatsAppService
+  def initialize(instance_name = nil)
+    @client = EvolutionApi.client
+    @instance_name = instance_name || Rails.application.credentials.evolution_api[:default_instance]
+  end
+
+  def send_bulk_messages(phone_numbers, message)
+    results = []
+    
+    phone_numbers.each do |phone|
+      begin
+        response = @client.send_text_message(@instance_name, phone, message)
+        results << { phone: phone, success: true, response: response }
+      rescue EvolutionApi::Error => e
+        results << { phone: phone, success: false, error: e.message }
+      end
+    end
+    
+    results
+  end
+
+  def broadcast_message(message, options = {})
+    contacts = @client.get_contacts(@instance_name)
+    
+    contacts.each do |contact|
+      next if options[:exclude_numbers]&.include?(contact['id'])
+      
+      @client.send_text_message(@instance_name, contact['id'], message)
+      sleep(options[:delay] || 1) # Evita rate limiting
+    end
+  end
+
+  def instance_status
+    @client.get_instance(@instance_name)
+  end
+
+  def is_connected?
+    status = instance_status
+    status['status'] == 'open'
+  end
+end
+```
+
+### Exemplo de Job para Processamento Assíncrono
+
+```ruby
+# app/jobs/whatsapp_message_job.rb
+class WhatsAppMessageJob < ApplicationJob
+  queue_as :whatsapp
+
+  def perform(instance_name, phone_number, message, message_type = 'text')
+    client = EvolutionApi.client
+    
+    case message_type
+    when 'text'
+      client.send_text_message(instance_name, phone_number, message)
+    when 'image'
+      client.send_image_message(instance_name, phone_number, message[:url], message[:caption])
+    when 'audio'
+      client.send_audio_message(instance_name, phone_number, message[:url])
+    when 'video'
+      client.send_video_message(instance_name, phone_number, message[:url], message[:caption])
+    when 'document'
+      client.send_document_message(instance_name, phone_number, message[:url], message[:caption])
+    end
+  rescue EvolutionApi::Error => e
+    Rails.logger.error "WhatsApp message failed: #{e.message}"
+    raise e
+  end
+end
+```
+
+### Exemplo de Webhook Controller
+
+```ruby
+# app/controllers/webhooks/whatsapp_controller.rb
+class Webhooks::WhatsappController < ApplicationController
+  skip_before_action :verify_authenticity_token
+  
+  def receive
+    case params[:event]
+    when 'connection.update'
+      handle_connection_update
+    when 'message.upsert'
+      handle_message_upsert
+    when 'qr.update'
+      handle_qr_update
+    end
+    
+    head :ok
+  end
+
+  private
+
+  def handle_connection_update
+    instance_name = params[:instance]
+    status = params[:data][:status]
+    
+    Rails.logger.info "WhatsApp instance #{instance_name} status: #{status}"
+    
+    # Atualizar status no banco de dados
+    instance = WhatsAppInstance.find_by(name: instance_name)
+    instance&.update(status: status)
+  end
+
+  def handle_message_upsert
+    message_data = params[:data]
+    instance_name = params[:instance]
+    
+    # Processar mensagem recebida
+    message = Message.create!(
+      instance_name: instance_name,
+      phone_number: message_data[:key][:remoteJid],
+      message_type: detect_message_type(message_data[:message]),
+      content: extract_message_content(message_data[:message]),
+      from_me: message_data[:key][:fromMe],
+      timestamp: Time.at(message_data[:messageTimestamp])
+    )
+    
+    # Processar automaticamente se necessário
+    AutoReplyService.new(message).process if should_auto_reply?(message)
+  end
+
+  def handle_qr_update
+    instance_name = params[:instance]
+    qr_code = params[:data][:qrcode]
+    
+    # Salvar QR code para exibição
+    Rails.cache.write("whatsapp_qr_#{instance_name}", qr_code, expires_in: 2.minutes)
+  end
+
+  def detect_message_type(message)
+    return 'text' if message[:conversation] || message[:extendedTextMessage]
+    return 'image' if message[:imageMessage]
+    return 'audio' if message[:audioMessage]
+    return 'video' if message[:videoMessage]
+    return 'document' if message[:documentMessage]
+    return 'location' if message[:locationMessage]
+    return 'contact' if message[:contactMessage]
+    'unknown'
+  end
+
+  def extract_message_content(message)
+    return message[:conversation] if message[:conversation]
+    return message[:extendedTextMessage][:text] if message[:extendedTextMessage]
+    return message[:imageMessage][:url] if message[:imageMessage]
+    return message[:audioMessage][:url] if message[:audioMessage]
+    return message[:videoMessage][:url] if message[:videoMessage]
+    return message[:documentMessage][:url] if message[:documentMessage]
+    nil
+  end
+
+  def should_auto_reply?(message)
+    !message.from_me && message.message_type == 'text'
+  end
+end
+```
+
+### Configuração de Rotas
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  # Rotas para WhatsApp
+  resources :whatsapp, only: [:index] do
+    collection do
+      post :send_message
+      get :list_instances
+      post :create_instance
+      get :qr_code/:instance_name, action: :qr_code, as: :qr_code
+    end
+  end
+
+  # Webhook para receber mensagens
+  post 'webhooks/whatsapp', to: 'webhooks/whatsapp#receive'
+end
+```
+
+### Exemplo de View
+
+```erb
+<!-- app/views/whatsapp/index.html.erb -->
+<div class="whatsapp-dashboard">
+  <h1>WhatsApp Dashboard</h1>
+  
+  <div class="instances">
+    <h2>Instâncias</h2>
+    <div id="instances-list">
+      <!-- Será preenchido via JavaScript -->
+    </div>
+    
+    <button onclick="createInstance()">Nova Instância</button>
+  </div>
+  
+  <div class="qr-code" id="qr-code">
+    <!-- QR Code será exibido aqui -->
+  </div>
+  
+  <div class="send-message">
+    <h2>Enviar Mensagem</h2>
+    <form id="message-form">
+      <select name="instance_name" required>
+        <option value="">Selecione uma instância</option>
+      </select>
+      
+      <input type="tel" name="phone_number" placeholder="Número (ex: 5511999999999)" required>
+      
+      <textarea name="message" placeholder="Mensagem" required></textarea>
+      
+      <button type="submit">Enviar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  loadInstances();
+  setupMessageForm();
+});
+
+function loadInstances() {
+  fetch('/whatsapp/list_instances')
+    .then(response => response.json())
+    .then(data => {
+      const instancesList = document.getElementById('instances-list');
+      const instanceSelect = document.querySelector('select[name="instance_name"]');
+      
+      data.instances.forEach(instance => {
+        // Atualizar lista de instâncias
+        instancesList.innerHTML += `
+          <div class="instance">
+            <strong>${instance.instance}</strong>
+            <span class="status ${instance.status}">${instance.status}</span>
+          </div>
+        `;
+        
+        // Atualizar select
+        instanceSelect.innerHTML += `
+          <option value="${instance.instance}">${instance.instance} (${instance.status})</option>
+        `;
+      });
+    });
+}
+
+function setupMessageForm() {
+  document.getElementById('message-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/whatsapp/send_message', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Mensagem enviada com sucesso!');
+        this.reset();
+      } else {
+        alert('Erro ao enviar mensagem: ' + data.error);
+      }
+    });
+  });
+}
+
+function createInstance() {
+  const instanceName = prompt('Nome da instância:');
+  if (!instanceName) return;
+  
+  fetch('/whatsapp/create_instance', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ instance_name: instanceName })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Instância criada! Verifique o QR Code.');
+      loadInstances();
+    } else {
+      alert('Erro ao criar instância: ' + data.error);
+    }
+  });
+}
+</script>
+```
+
 ## ⚙️ Configuração
 
 ### Configuração Básica
