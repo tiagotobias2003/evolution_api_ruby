@@ -347,117 +347,337 @@ Rails.application.routes.draw do
 end
 ```
 
-### Exemplo de View
+### Exemplo de View com Stimulus
 
 ```erb
 <!-- app/views/whatsapp/index.html.erb -->
-<div class="whatsapp-dashboard">
+<div class="whatsapp-dashboard" data-controller="whatsapp">
   <h1>WhatsApp Dashboard</h1>
   
   <div class="instances">
     <h2>Instâncias</h2>
-    <div id="instances-list">
-      <!-- Será preenchido via JavaScript -->
+    <div data-whatsapp-target="instancesList">
+      <!-- Será preenchido via Stimulus -->
     </div>
     
-    <button onclick="createInstance()">Nova Instância</button>
+    <button data-action="click->whatsapp#createInstance">Nova Instância</button>
   </div>
   
-  <div class="qr-code" id="qr-code">
+  <div class="qr-code" data-whatsapp-target="qrCode">
     <!-- QR Code será exibido aqui -->
   </div>
   
   <div class="send-message">
     <h2>Enviar Mensagem</h2>
-    <form id="message-form">
-      <select name="instance_name" required>
+    <form data-action="submit->whatsapp#sendMessage">
+      <select data-whatsapp-target="instanceSelect" required>
         <option value="">Selecione uma instância</option>
       </select>
       
-      <input type="tel" name="phone_number" placeholder="Número (ex: 5511999999999)" required>
+      <input type="tel" data-whatsapp-target="phoneInput" placeholder="Número (ex: 5511999999999)" required>
       
-      <textarea name="message" placeholder="Mensagem" required></textarea>
+      <textarea data-whatsapp-target="messageInput" placeholder="Mensagem" required></textarea>
       
       <button type="submit">Enviar</button>
     </form>
   </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  loadInstances();
-  setupMessageForm();
-});
-
-function loadInstances() {
-  fetch('/whatsapp/list_instances')
-    .then(response => response.json())
-    .then(data => {
-      const instancesList = document.getElementById('instances-list');
-      const instanceSelect = document.querySelector('select[name="instance_name"]');
-      
-      data.instances.forEach(instance => {
-        // Atualizar lista de instâncias
-        instancesList.innerHTML += `
-          <div class="instance">
-            <strong>${instance.instance}</strong>
-            <span class="status ${instance.status}">${instance.status}</span>
-          </div>
-        `;
-        
-        // Atualizar select
-        instanceSelect.innerHTML += `
-          <option value="${instance.instance}">${instance.instance} (${instance.status})</option>
-        `;
-      });
-    });
-}
-
-function setupMessageForm() {
-  document.getElementById('message-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    
-    fetch('/whatsapp/send_message', {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert('Mensagem enviada com sucesso!');
-        this.reset();
-      } else {
-        alert('Erro ao enviar mensagem: ' + data.error);
-      }
-    });
-  });
-}
-
-function createInstance() {
-  const instanceName = prompt('Nome da instância:');
-  if (!instanceName) return;
   
-  fetch('/whatsapp/create_instance', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
-    },
-    body: JSON.stringify({ instance_name: instanceName })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      alert('Instância criada! Verifique o QR Code.');
-      loadInstances();
-    } else {
-      alert('Erro ao criar instância: ' + data.error);
+  <!-- Área para notificações -->
+  <div data-whatsapp-target="notifications"></div>
+</div>
+```
+
+### Controller Stimulus
+
+```javascript
+// app/javascript/controllers/whatsapp_controller.js
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  static targets = ["instancesList", "instanceSelect", "phoneInput", "messageInput", "qrCode", "notifications"]
+
+  connect() {
+    this.loadInstances()
+  }
+
+  async loadInstances() {
+    try {
+      const response = await fetch('/whatsapp/list_instances')
+      const data = await response.json()
+      
+      this.updateInstancesList(data.instances)
+      this.updateInstanceSelect(data.instances)
+    } catch (error) {
+      this.showNotification('Erro ao carregar instâncias: ' + error.message, 'error')
     }
-  });
+  }
+
+  updateInstancesList(instances) {
+    this.instancesListTarget.innerHTML = instances.map(instance => `
+      <div class="instance">
+        <strong>${instance.instance}</strong>
+        <span class="status ${instance.status}">${instance.status}</span>
+        <button data-action="click->whatsapp#connectInstance" data-instance="${instance.instance}">
+          Conectar
+        </button>
+      </div>
+    `).join('')
+  }
+
+  updateInstanceSelect(instances) {
+    this.instanceSelectTarget.innerHTML = '<option value="">Selecione uma instância</option>' +
+      instances.map(instance => `
+        <option value="${instance.instance}">${instance.instance} (${instance.status})</option>
+      `).join('')
+  }
+
+  async sendMessage(event) {
+    event.preventDefault()
+    
+    const formData = new FormData(event.target)
+    
+    try {
+      const response = await fetch('/whatsapp/send_message', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        this.showNotification('Mensagem enviada com sucesso!', 'success')
+        event.target.reset()
+      } else {
+        this.showNotification('Erro ao enviar mensagem: ' + data.error, 'error')
+      }
+    } catch (error) {
+      this.showNotification('Erro de conexão: ' + error.message, 'error')
+    }
+  }
+
+  async createInstance() {
+    const instanceName = prompt('Nome da instância:')
+    if (!instanceName) return
+    
+    try {
+      const response = await fetch('/whatsapp/create_instance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ instance_name: instanceName })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        this.showNotification('Instância criada! Verifique o QR Code.', 'success')
+        this.loadInstances()
+      } else {
+        this.showNotification('Erro ao criar instância: ' + data.error, 'error')
+      }
+    } catch (error) {
+      this.showNotification('Erro de conexão: ' + error.message, 'error')
+    }
+  }
+
+  async connectInstance(event) {
+    const instanceName = event.currentTarget.dataset.instance
+    
+    try {
+      const response = await fetch('/whatsapp/connect_instance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ instance_name: instanceName })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success && data.qr_code) {
+        this.showQRCode(data.qr_code)
+        this.showNotification('QR Code gerado! Escaneie com o WhatsApp.', 'info')
+      } else {
+        this.showNotification('Erro ao conectar instância: ' + data.error, 'error')
+      }
+    } catch (error) {
+      this.showNotification('Erro de conexão: ' + error.message, 'error')
+    }
+  }
+
+  showQRCode(qrCode) {
+    this.qrCodeTarget.innerHTML = `
+      <h3>QR Code para Conectar</h3>
+      <img src="${qrCode}" alt="QR Code WhatsApp" style="max-width: 300px;">
+    `
+  }
+
+  showNotification(message, type) {
+    const notification = document.createElement('div')
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show`
+    notification.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `
+    
+    this.notificationsTarget.appendChild(notification)
+    
+    // Auto-remove após 5 segundos
+    setTimeout(() => {
+      notification.remove()
+    }, 5000)
+  }
 }
-</script>
+```
+
+### Configuração do Stimulus
+
+Certifique-se de que o Stimulus está configurado no seu projeto Rails:
+
+```bash
+# Se estiver usando importmap (Rails 7+)
+bin/rails stimulus:install
+
+# Se estiver usando esbuild/webpack
+yarn add @hotwired/stimulus
+```
+
+### Controller Rails com Turbo Streams
+
+```ruby
+# app/controllers/whatsapp_controller.rb
+class WhatsappController < ApplicationController
+  def index
+    # Renderiza a view principal
+  end
+
+  def list_instances
+    instances = EvolutionApi::Client.new.list_instances
+    
+    respond_to do |format|
+      format.json { render json: { instances: instances } }
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace(
+          "instances-list",
+          partial: "instances_list",
+          locals: { instances: instances }
+        )
+      end
+    end
+  end
+
+  def send_message
+    result = WhatsappService.new.send_message(message_params)
+    
+    respond_to do |format|
+      format.json { render json: result }
+      format.turbo_stream do
+        if result[:success]
+          render turbo_stream: [
+            turbo_stream.replace("message-form", partial: "message_form"),
+            turbo_stream.append("notifications", partial: "notification", locals: { 
+              message: "Mensagem enviada com sucesso!", 
+              type: "success" 
+            })
+          ]
+        else
+          render turbo_stream: turbo_stream.append("notifications", partial: "notification", locals: { 
+            message: result[:error], 
+            type: "error" 
+          })
+        end
+      end
+    end
+  end
+
+  def create_instance
+    result = WhatsappService.new.create_instance(params[:instance_name])
+    
+    respond_to do |format|
+      format.json { render json: result }
+      format.turbo_stream do
+        if result[:success]
+          render turbo_stream: [
+            turbo_stream.replace("instances-list", partial: "instances_list", locals: { instances: result[:instances] }),
+            turbo_stream.append("notifications", partial: "notification", locals: { 
+              message: "Instância criada com sucesso!", 
+              type: "success" 
+            })
+          ]
+        else
+          render turbo_stream: turbo_stream.append("notifications", partial: "notification", locals: { 
+            message: result[:error], 
+            type: "error" 
+          })
+        end
+      end
+    end
+  end
+
+  def connect_instance
+    result = WhatsappService.new.connect_instance(params[:instance_name])
+    
+    respond_to do |format|
+      format.json { render json: result }
+      format.turbo_stream do
+        if result[:success]
+          render turbo_stream: turbo_stream.replace("qr-code", partial: "qr_code", locals: { qr_code: result[:qr_code] })
+        else
+          render turbo_stream: turbo_stream.append("notifications", partial: "notification", locals: { 
+            message: result[:error], 
+            type: "error" 
+          })
+        end
+      end
+    end
+  end
+
+  private
+
+  def message_params
+    params.permit(:instance_name, :phone_number, :message)
+  end
+end
+```
+
+### Partials para Turbo Streams
+
+```erb
+<!-- app/views/whatsapp/_instances_list.html.erb -->
+<div id="instances-list">
+  <% instances.each do |instance| %>
+    <div class="instance">
+      <strong><%= instance.instance %></strong>
+      <span class="status <%= instance.status %>"><%= instance.status %></span>
+      <button data-action="click->whatsapp#connectInstance" data-instance="<%= instance.instance %>">
+        Conectar
+      </button>
+    </div>
+  <% end %>
+</div>
+```
+
+```erb
+<!-- app/views/whatsapp/_notification.html.erb -->
+<div class="alert alert-<%= type == 'success' ? 'success' : type == 'error' ? 'danger' : 'info' %> alert-dismissible fade show" role="alert">
+  <%= message %>
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+```
+
+```erb
+<!-- app/views/whatsapp/_qr_code.html.erb -->
+<div id="qr-code">
+  <h3>QR Code para Conectar</h3>
+  <img src="<%= qr_code %>" alt="QR Code WhatsApp" style="max-width: 300px;">
+</div>
+```
 ```
 
 ## ⚙️ Configuração
