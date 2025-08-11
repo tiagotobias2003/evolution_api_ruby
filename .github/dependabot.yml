@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "tiagotobias2003"
+    assignees:
+      - "tiagotobias2003"
+    commit-message:
+      prefix: "deps"
+      include: "scope"

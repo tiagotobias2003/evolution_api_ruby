@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Cliente Ruby para Evolution API - API de WhatsApp"
   spec.description = "Uma gem Ruby para consumir facilmente a Evolution API, permitindo integração com WhatsApp através de uma API REST simples e poderosa."
-  spec.homepage = "https://github.com/your-username/evolution_api_ruby"
+  spec.homepage = "https://github.com/tiagotobias2003/evolution_api_ruby"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 

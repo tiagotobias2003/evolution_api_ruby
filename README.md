@@ -3,6 +3,8 @@
 [![Ruby Version](https://img.shields.io/badge/ruby-3.0+-red.svg)](https://ruby-lang.org)
 [![Gem Version](https://img.shields.io/gem/v/evolution_api.svg)](https://rubygems.org/gems/evolution_api)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![GitHub](https://img.shields.io/badge/github-evolution__api__ruby-black.svg)](https://github.com/tiagotobias2003/evolution_api_ruby)
+[![Build Status](https://github.com/tiagotobias2003/evolution_api_ruby/workflows/CI/badge.svg)](https://github.com/tiagotobias2003/evolution_api_ruby/actions)
 
 Uma gem Ruby elegante e poderosa para consumir a [Evolution API](https://doc.evolution-api.com/), permitindo integração fácil com WhatsApp através de uma API REST simples e robusta.
 
@@ -429,7 +431,7 @@ end
 A documentação completa está disponível em:
 
 - [Documentação da API](https://doc.evolution-api.com/)
-- [Documentação da Gem (YARD)](https://your-username.github.io/evolution_api_ruby/)
+- [Documentação da Gem (YARD)](https://tiagotobias2003.github.io/evolution_api_ruby/)
 
 Para gerar a documentação localmente:
 
@@ -466,8 +468,8 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE.txt](
 ## 🆘 Suporte
 
 - 📖 [Documentação](https://doc.evolution-api.com/)
-- 🐛 [Issues](https://github.com/your-username/evolution_api_ruby/issues)
-- 💬 [Discussions](https://github.com/your-username/evolution_api_ruby/discussions)
+- 🐛 [Issues](https://github.com/tiagotobias2003/evolution_api_ruby/issues)
+- 💬 [Discussions](https://github.com/tiagotobias2003/evolution_api_ruby/discussions)
 
 ## 🙏 Agradecimentos
 
