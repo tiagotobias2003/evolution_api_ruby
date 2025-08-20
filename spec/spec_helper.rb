@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
+require 'dotenv/load'
 require 'evolution_api'
 require 'webmock/rspec'
 require 'vcr'
@@ -13,7 +14,7 @@ VCR.configure do |config|
 
   # Filtrar informações sensíveis
   config.filter_sensitive_data('<API_KEY>') { ENV['EVOLUTION_API_KEY'] }
-  config.filter_sensitive_data('<BASE_URL>') { ENV['EVOLUTION_API_URL'] || 'http://localhost:8080' }
+  config.filter_sensitive_data('<BASE_URL>') { ENV['EVOLUTION_API_BASE_URL'] || 'http://localhost:8080' }
 
   # Permitir conexões lochas para testes
   config.allow_http_connections_when_no_cassette = true
@@ -46,7 +47,7 @@ end
 
 # Configuração padrão para testes
 EvolutionApi.configure do |config|
-  config.base_url = ENV['EVOLUTION_API_URL'] || 'http://localhost:8080'
+  config.base_url = ENV['EVOLUTION_API_BASE_URL'] || 'http://localhost:8080'
   config.api_key = ENV['EVOLUTION_API_KEY']
   config.timeout = 5
   config.retry_attempts = 1

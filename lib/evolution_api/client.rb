@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'cgi'
+require 'uri'
+
 module EvolutionApi
   # Cliente principal para interagir com a Evolution API
   class Client
@@ -36,27 +39,37 @@ module EvolutionApi
 
     # Conecta uma instância
     def connect_instance(instance_name)
-      post("/instance/connect/#{instance_name}")
+      puts "Connecting to instance #{encode_instance_name(instance_name)}"
+      puts "Encoded name: #{encode_instance_name(instance_name)}"
+      get("/instance/connect/#{encode_instance_name(instance_name)}")
     end
 
     # Desconecta uma instância
     def disconnect_instance(instance_name)
-      delete("/instance/logout/#{instance_name}")
+      delete("/instance/logout/#{encode_instance_name(instance_name)}")
     end
 
     # Remove uma instância
     def delete_instance(instance_name)
-      delete("/instance/delete/#{instance_name}")
+      delete("/instance/delete/#{encode_instance_name(instance_name)}")
     end
 
     # Obtém informações de uma instância
     def get_instance(instance_name)
-      get("/instance/fetchInstances/#{instance_name}")
+      response = get("/instance/fetchInstances?instanceName=#{encode_instance_name(instance_name)}")
+
+      # Se a resposta for um array, retorna o primeiro item
+      # Se for um hash, retorna diretamente
+      if response.is_a?(Array)
+        response.first
+      else
+        response
+      end
     end
 
     # Obtém QR Code de uma instância
     def get_qr_code(instance_name)
-      get("/instance/connect/#{instance_name}")
+      get("/instance/connect/#{encode_instance_name(instance_name)}")
     end
 
     # ==================== MENSAGENS ====================
@@ -69,7 +82,7 @@ module EvolutionApi
         options: options
       }
 
-      post("/message/sendText/#{instance_name}", body)
+      post("/message/sendText/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma mensagem de imagem
@@ -81,7 +94,7 @@ module EvolutionApi
         options: options
       }.compact
 
-      post("/message/sendImage/#{instance_name}", body)
+      post("/message/sendImage/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma mensagem de áudio
@@ -92,7 +105,7 @@ module EvolutionApi
         options: options
       }
 
-      post("/message/sendAudio/#{instance_name}", body)
+      post("/message/sendAudio/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma mensagem de vídeo
@@ -104,7 +117,7 @@ module EvolutionApi
         options: options
       }.compact
 
-      post("/message/sendVideo/#{instance_name}", body)
+      post("/message/sendVideo/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia um documento
@@ -116,7 +129,7 @@ module EvolutionApi
         options: options
       }.compact
 
-      post("/message/sendDocument/#{instance_name}", body)
+      post("/message/sendDocument/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma localização
@@ -128,7 +141,7 @@ module EvolutionApi
         description: description
       }.compact
 
-      post("/message/sendLocation/#{instance_name}", body)
+      post("/message/sendLocation/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma mensagem de contato
@@ -141,7 +154,7 @@ module EvolutionApi
         }]
       }
 
-      post("/message/sendContact/#{instance_name}", body)
+      post("/message/sendContact/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma mensagem de botão
@@ -153,7 +166,7 @@ module EvolutionApi
         buttons: buttons
       }
 
-      post("/message/sendButton/#{instance_name}", body)
+      post("/message/sendButton/#{encode_instance_name(instance_name)}", body)
     end
 
     # Envia uma lista de opções
@@ -165,71 +178,78 @@ module EvolutionApi
         sections: sections
       }
 
-      post("/message/sendList/#{instance_name}", body)
+      post("/message/sendList/#{encode_instance_name(instance_name)}", body)
     end
 
     # ==================== CHAT ====================
 
     # Obtém chats de uma instância
     def get_chats(instance_name)
-      get("/chat/findChats/#{instance_name}")
+      post("/chat/findChats/#{encode_instance_name(instance_name)}")
     end
 
     # Obtém mensagens de um chat
-    def get_messages(instance_name, number, options = {})
+    def get_messages(instance_name, options = {})
       params = {
-        limit: options[:limit] || 50,
-        cursor: options[:cursor]
-      }.compact
+        where: {
+          key: {
+            remoteJid: options[:remote_jid] || options[:number]
+          }
+        }
+      }
 
-      get("/chat/findMessages/#{instance_name}/#{number}", params)
+      # Add optional parameters if provided
+      params[:limit] = options[:limit] if options[:limit]
+      params[:cursor] = options[:cursor] if options[:cursor]
+
+      post("/chat/findMessages/#{encode_instance_name(instance_name)}", params)
     end
 
     # Marca mensagens como lidas
     def mark_messages_as_read(instance_name, number)
-      post("/chat/markMessageAsRead/#{instance_name}", { number: number })
+      put("/chat/markMessageAsRead/#{encode_instance_name(instance_name)}", { number: number })
     end
 
     # Arquivar chat
     def archive_chat(instance_name, number)
-      post("/chat/archiveChat/#{instance_name}", { number: number })
+      put("/chat/archiveChat/#{encode_instance_name(instance_name)}", { number: number })
     end
 
     # Desarquivar chat
     def unarchive_chat(instance_name, number)
-      post("/chat/unarchiveChat/#{instance_name}", { number: number })
+      put("/chat/unarchiveChat/#{encode_instance_name(instance_name)}", { number: number })
     end
 
     # Deletar chat
     def delete_chat(instance_name, number)
-      delete("/chat/deleteChat/#{instance_name}/#{number}")
+      delete("/chat/deleteChat/#{encode_instance_name(instance_name)}/#{number}")
     end
 
     # ==================== CONTATOS ====================
 
     # Obtém contatos de uma instância
     def get_contacts(instance_name)
-      get("/contact/findContacts/#{instance_name}")
+      get("/contact/findContacts/#{encode_instance_name(instance_name)}")
     end
 
     # Obtém informações de um contato
     def get_contact(instance_name, number)
-      get("/contact/findContact/#{instance_name}/#{number}")
+      get("/contact/findContact/#{encode_instance_name(instance_name)}/#{number}")
     end
 
     # Verifica se um número existe no WhatsApp
     def check_number(instance_name, number)
-      post("/contact/checkNumber/#{instance_name}", { number: number })
+      get("/contact/checkNumber/#{encode_instance_name(instance_name)}/#{number}")
     end
 
     # Bloqueia um contato
     def block_contact(instance_name, number)
-      post("/contact/blockContact/#{instance_name}", { number: number })
+      put("/contact/blockContact/#{encode_instance_name(instance_name)}", { number: number })
     end
 
     # Desbloqueia um contato
     def unblock_contact(instance_name, number)
-      post("/contact/unblockContact/#{instance_name}", { number: number })
+      put("/contact/unblockContact/#{encode_instance_name(instance_name)}", { number: number })
     end
 
     # ==================== WEBHOOK ====================
@@ -244,20 +264,25 @@ module EvolutionApi
 
       body[:events] = events if events
 
-      post("/webhook/set/#{instance_name}", body)
+      post("/webhook/set/#{encode_instance_name(instance_name)}", body)
     end
 
     # Obtém configuração de webhook
     def get_webhook(instance_name)
-      get("/webhook/find/#{instance_name}")
+      get("/webhook/find/#{encode_instance_name(instance_name)}")
     end
 
     # Remove webhook
     def delete_webhook(instance_name)
-      delete("/webhook/del/#{instance_name}")
+      delete("/webhook/del/#{encode_instance_name(instance_name)}")
     end
 
     # ==================== MÉTODOS HTTP ====================
+
+    # Codifica o nome da instância para uso em URLs
+    def encode_instance_name(name)
+      CGI.escape(name).gsub('+', '%20')
+    end
 
     private
 
@@ -295,6 +320,11 @@ module EvolutionApi
     def make_request(method, path, options = {})
       retries = 0
       begin
+        # Converte o body para JSON se existir
+        if options[:body] && !options[:body].empty?
+          options[:body] = options[:body].to_json
+        end
+
         response = self.class.public_send(method, path, options)
         handle_response(response)
       rescue HTTParty::Error => e
@@ -314,6 +344,9 @@ module EvolutionApi
       case response.code
       when 200, 201
         parse_response(response)
+      when 400
+        error_details = parse_errors(response)
+        raise ValidationError.new("Erro de requisição (400): #{error_details}", response, error_details)
       when 401
         raise AuthenticationError.new('Erro de autenticação', response)
       when 403

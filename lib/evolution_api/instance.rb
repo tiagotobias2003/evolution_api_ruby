@@ -94,8 +94,8 @@ module EvolutionApi
     end
 
     # Obtém mensagens de um chat
-    def messages(number, options = {})
-      client.get_messages(name, number, options)
+    def messages(options = {})
+      client.get_messages(name, options)
     end
 
     # Marca mensagens como lidas

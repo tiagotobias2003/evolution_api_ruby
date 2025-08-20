@@ -859,7 +859,8 @@ client.send_list_message(
 chats = client.get_chats("minha_instancia")
 
 # Obter mensagens de um chat
-messages = client.get_messages("minha_instancia", "5511999999999", {
+messages = client.get_messages("minha_instancia", {
+  remote_jid: "5511999999999",
   limit: 50,
   cursor: "cursor_para_paginacao"
 })
@@ -944,7 +945,7 @@ end
 
 ```ruby
 # Obter mensagens e processar
-messages_data = client.get_messages("minha_instancia", "5511999999999")
+messages_data = client.get_messages("minha_instancia", { remote_jid: "5511999999999" })
 messages = messages_data.map { |msg| EvolutionApi::Message.new(msg, "minha_instancia") }
 
 messages.each do |message|

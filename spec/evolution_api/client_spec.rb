@@ -109,7 +109,7 @@ RSpec.describe EvolutionApi::Client do
 
   describe '#get_chats' do
     it 'returns list of chats' do
-      allow(client.class).to receive(:get).with('/chat/findChats/test_instance', any_args).and_return(double(
+      allow(client.class).to receive(:post).with('/chat/findChats/test_instance', any_args).and_return(double(
         code: 200,
         body: '[{"id": "chat1"}, {"id": "chat2"}]'
       ))
@@ -119,9 +119,45 @@ RSpec.describe EvolutionApi::Client do
     end
   end
 
+  describe '#get_messages' do
+    it 'returns messages for a chat' do
+      allow(client.class).to receive(:post).with('/chat/findMessages/test_instance', any_args).and_return(double(
+        code: 200,
+        body: '[{"id": "msg1", "text": "Hello"}, {"id": "msg2", "text": "World"}]'
+      ))
+
+      response = client.get_messages('test_instance', { remote_jid: '5511999999999' })
+      expect(response).to be_an(Array)
+    end
+
+    it 'includes limit and cursor parameters' do
+      expect(client.class).to receive(:post).with(
+        '/chat/findMessages/test_instance',
+        hash_including(:body)
+      ).and_return(double(code: 200, body: '[]'))
+
+      response = client.get_messages('test_instance', {
+        remote_jid: '5511999999999',
+        limit: 10,
+        cursor: 'cursor123'
+      })
+      expect(response).to be_an(Array)
+    end
+
+    it 'supports number parameter for backward compatibility' do
+      expect(client.class).to receive(:post).with(
+        '/chat/findMessages/test_instance',
+        hash_including(:body)
+      ).and_return(double(code: 200, body: '[]'))
+
+      response = client.get_messages('test_instance', { number: '5511999999999' })
+      expect(response).to be_an(Array)
+    end
+  end
+
   describe '#get_contacts' do
     it 'returns list of contacts' do
-      allow(client.class).to receive(:get).with('/contact/findContacts/test_instance', any_args).and_return(double(
+      allow(client.class).to receive(:post).with('/contact/findContacts/test_instance', any_args).and_return(double(
         code: 200,
         body: '[{"id": "contact1"}, {"id": "contact2"}]'
       ))

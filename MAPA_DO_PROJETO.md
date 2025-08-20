@@ -112,7 +112,7 @@ instance = EvolutionApi::Instance.new("minha_instancia", client)
 instance.send_text("5511999999999", "Olá!")
 
 # Classe Message
-messages = client.get_messages("minha_instancia", "5511999999999")
+messages = client.get_messages("minha_instancia", { remote_jid: "5511999999999" })
 message = EvolutionApi::Message.new(messages.first, "minha_instancia")
 puts message.text
 ```

@@ -181,7 +181,7 @@ puts <<~RUBY
       unread_chats = chats.select { |chat| chat['unreadCount']&.positive? }
 
       unread_chats.map do |chat|
-        messages = @client.get_messages(@instance_name, chat['id'], { limit: chat['unreadCount'] })
+        messages = @client.get_messages(@instance_name, { remote_jid: chat['id'], limit: chat['unreadCount'] })
         { chat: chat, messages: messages }
       end
     end
