@@ -55,3 +55,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Documentation files
+PUBLICAR_GEM.md
